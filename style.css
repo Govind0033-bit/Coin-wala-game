@@ -1,0 +1,27 @@
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: linear-gradient(to bottom right, #fceabb, #f8b500);
+  font-family: sans-serif;
+}
+
+#gameCanvas {
+  display: block;
+  margin: 0 auto;
+  background: url('https://i.ibb.co/TvGMQKk/bg.jpg') no-repeat center center;
+  background-size: cover;
+  border: 2px solid #333;
+}
+
+#donate {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: #fff;
+  padding: 8px;
+  border-radius: 5px;
+  box-shadow: 0 0 5px rgba(0,0,0,0.5);
+  font-weight: bold;
+}
