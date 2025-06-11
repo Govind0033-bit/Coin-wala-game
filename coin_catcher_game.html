@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Govind's Coin Catcher</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: linear-gradient(to bottom right, #a1c4fd, #c2e9fb);
+    }
+
+    #start-screen, #game-over {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #fff3cd;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      z-index: 2;
+    }
+
+    #game-area {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+      overflow: hidden;
+      background: linear-gradient(to bottom, #e0f7fa, #b2ebf2);
+    }
+
+    .falling {
+      position: absolute;
+      font-size: 2.5em;
+      transition: top linear;
+    }
+
+    #basket {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 2.5em;
+    }
+
+    #scoreboard {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background-color: rgba(0, 0, 0, 0.5);
+      color: white;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 1em;
+    }
+
+    #support {
+      margin-top: 20px;
+      font-size: 1em;
+      color: #333;
+      max-width: 300px;
+    }
+
+    #qr-code {
+      width: 150px;
+      height: auto;
+      margin-top: 10px;
+      border-radius: 10px;
+    }
+
+    .button {
+      padding: 10px 20px;
+      font-size: 1.2em;
+      border: none;
+      border-radius: 8px;
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+      margin: 10px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="start-screen">
+    <h1>Govind's Coin Catcher</h1>
+    <p>Collect the 🪙 and avoid the 💣</p>
+    <button class="button" onclick="startGame()">Start Game</button>
+    <button class="button" onclick="togglePause()" id="pause-btn" style="display:none;">Pause</button>
+    <div id="support">
+      Please support me for my first phone, which I bought with my own money. I've added my QR code below.
+    </div>
+    <img id="qr-code" src="1000035181.jpg" alt="QR Code">
+  </div>
+
+  <div id="game-area" style="display:none;">
+    <div id="scoreboard">
+      Score: <span id="score">0</span><br>
+      High Score: <span id="high-score">0</span>
+    </div>
+    <div id="basket">🧺</div>
+  </div>
+
+  <div id="game-over" style="display:none;">
+    <h1>Game Over</h1>
+    <p>Your score: <span id="final-score">0</span></p>
+    <p>High score: <span id="final-high-score">0</span></p>
+    <button class="button" onclick="restartGame()">Restart Game</button>
+  </div>
+
+  <audio id="bg-music" loop>
+    <source src="https://cdn.pixabay.com/download/audio/2022/10/19/audio_7dfb34958b.mp3?filename=calm-chill-lofi-ambient-113997.mp3" type="audio/mpeg">
+  </audio>
+  <audio id="coin-sound">
+    <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_0e75e43a96.mp3?filename=collectcoin-6075.mp3" type="audio/mpeg">
+  </audio>
+  <audio id="boom-sound">
+    <source src="https://cdn.pixabay.com/download/audio/2022/03/01/audio_050c4c79a8.mp3?filename=explosion-6055.mp3" type="audio/mpeg">
+  </audio>
+
+  <script>
+    const gameArea = document.getElementById("game-area");
+    const scoreSpan = document.getElementById("score");
+    const highScoreSpan = document.getElementById("high-score");
+    const finalScore = document.getElementById("final-score");
+    const finalHighScore = document.getElementById("final-high-score");
+    const basket = document.getElementById("basket");
+    const bgMusic = document.getElementById("bg-music");
+    const coinSound = document.getElementById("coin-sound");
+    const boomSound = document.getElementById("boom-sound");
+    const pauseBtn = document.getElementById("pause-btn");
+
+    let score = 0;
+    let highScore = localStorage.getItem("highScore") || 0;
+    highScoreSpan.textContent = highScore;
+
+    let isPaused = false;
+    let dropInterval;
+
+    function startGame() {
+      document.getElementById("start-screen").style.display = "none";
+      gameArea.style.display = "block";
+      pauseBtn.style.display = "inline-block";
+      bgMusic.play();
+      score = 0;
+      scoreSpan.textContent = score;
+      startDropping();
+    }
+
+    function endGame() {
+      document.getElementById("game-over").style.display = "flex";
+      finalScore.textContent = score;
+      if (score > highScore) {
+        highScore = score;
+        localStorage.setItem("highScore", highScore);
+      }
+      finalHighScore.textContent = highScore;
+      gameArea.style.display = "none";
+      pauseBtn.style.display = "none";
+    }
+
+    function restartGame() {
+      location.reload();
+    }
+
+    function togglePause() {
+      isPaused = !isPaused;
+      pauseBtn.textContent = isPaused ? "Resume" : "Pause";
+    }
+
+    document.addEventListener("touchmove", (e) => {
+      basket.style.left = `${e.touches[0].clientX - 20}px`;
+    });
+
+    function startDropping() {
+      let speed = 3;
+      function drop() {
+        if (isPaused) {
+          setTimeout(drop, 200);
+          return;
+        }
+        const item = document.createElement("div");
+        item.className = "falling";
+        item.innerText = Math.random() < 0.7 ? "🪙" : "💣";
+        item.style.left = `${Math.random() * 90}vw`;
+        item.style.top = `-40px`;
+        gameArea.appendChild(item);
+
+        let top = -40;
+        const interval = setInterval(() => {
+          if (isPaused) return;
+          top += speed;
+          item.style.top = `${top}px`;
+
+          const basketRect = basket.getBoundingClientRect();
+          const itemRect = item.getBoundingClientRect();
+
+          if (top > window.innerHeight) {
+            gameArea.removeChild(item);
+            clearInterval(interval);
+          } else if (
+            itemRect.bottom > basketRect.top &&
+            itemRect.top < basketRect.bottom &&
+            itemRect.left < basketRect.right &&
+            itemRect.right > basketRect.left
+          ) {
+            if (item.innerText === "🪙") {
+              score++;
+              coinSound.play();
+              scoreSpan.textContent = score;
+              gameArea.removeChild(item);
+            } else {
+              boomSound.play();
+              clearInterval(interval);
+              endGame();
+            }
+          }
+        }, 30);
+        speed += 0.05;
+        setTimeout(drop, 800);
+      }
+      drop();
+    }
+  </script>
+</body>
+
+</html>
