@@ -1,236 +1,177 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Govind's Coin Catcher</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Coin Catcher Game</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
+    body, html {
       margin: 0;
       padding: 0;
       overflow: hidden;
-      background: linear-gradient(to bottom right, #a1c4fd, #c2e9fb);
+      font-family: sans-serif;
+      text-align: center;
+      background-color: #111;
+      color: white;
     }
 
-    #start-screen, #game-over {
+    canvas {
+      display: block;
+      margin: 0 auto;
+      background: linear-gradient(to bottom, #222, #000);
+    }
+
+    #start-screen, #game-over-screen {
       position: absolute;
       top: 0;
       left: 0;
-      width: 100%;
-      height: 100%;
-      background-color: #fff3cd;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.8);
       display: flex;
       flex-direction: column;
-      align-items: center;
       justify-content: center;
-      text-align: center;
+      align-items: center;
       z-index: 2;
     }
 
-    #game-area {
-      position: relative;
-      width: 100%;
-      height: 100vh;
-      overflow: hidden;
-      background: linear-gradient(to bottom, #e0f7fa, #b2ebf2);
+    #start-screen.hidden,
+    #game-over-screen.hidden {
+      display: none;
     }
 
-    .falling {
-      position: absolute;
-      font-size: 2.5em;
-      transition: top linear;
-    }
-
-    #basket {
-  position: absolute;
-  bottom: 10vh; /* yeh 10% height upar karega */
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 3rem;
-  z-index: 10;
-    }
-
-    #scoreboard {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      background-color: rgba(0, 0, 0, 0.5);
-      color: white;
-      padding: 10px;
-      border-radius: 8px;
-      font-size: 1em;
-    }
-
-    #support {
-      margin-top: 20px;
-      font-size: 1em;
-      color: #333;
-      max-width: 300px;
-    }
-
-    #qr-code {
-      width: 150px;
-      height: auto;
+    #game-over-screen button {
       margin-top: 10px;
-      border-radius: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
     }
 
-    .button {
-      padding: 10px 20px;
-      font-size: 1.2em;
-      border: none;
-      border-radius: 8px;
-      background-color: #007bff;
-      color: white;
-      cursor: pointer;
-      margin: 10px;
+    img.qr {
+      margin-top: 10px;
+      width: 120px;
+    }
+
+    p.note {
+      font-size: 12px;
+      margin-top: 4px;
     }
   </style>
 </head>
-
 <body>
   <div id="start-screen">
-    <h1>Govind's Coin Catcher</h1>
-    <p>Collect the 🪙 and avoid the 💣</p>
-    <button class="button" onclick="startGame()">Start Game</button>
-    <button class="button" onclick="togglePause()" id="pause-btn" style="display:none;">Pause</button>
-    <div id="support">
-      Please support me for my first phone, which I bought with my own money. I've added my QR code below.
-    </div>
-    <img id="qr-code" src="1000035181.jpg" alt="QR Code">
+    <h1>Coin Catcher Game</h1>
+    <p>Tap anywhere to start</p>
+    <img src="qr-code.png" alt="QR Code" class="qr" />
+    <p class="note">Scan to play anytime!</p>
   </div>
 
-  <div id="game-area" style="display:none;">
-    <div id="scoreboard">
-      Score: <span id="score">0</span><br>
-      High Score: <span id="high-score">0</span>
-    </div>
-    <div id="basket">🧺</div>
-  </div>
+  <canvas id="gameCanvas" width="400" height="600"></canvas>
 
-  <div id="game-over" style="display:none;">
-    <h1>Game Over</h1>
-    <p>Your score: <span id="final-score">0</span></p>
-    <p>High score: <span id="final-high-score">0</span></p>
-    <button class="button" onclick="restartGame()">Restart Game</button>
+  <div id="game-over-screen" class="hidden">
+    <h2>Game Over</h2>
+    <p>Your Score: <span id="final-score"></span></p>
+    <button onclick="restartGame()">Play Again</button>
+    <img src="qr-code.png" alt="QR Code" class="qr" />
+    <p class="note">Scan to play again!</p>
   </div>
-
-  <audio id="bg-music" loop>
-    <source src="https://cdn.pixabay.com/download/audio/2022/10/19/audio_7dfb34958b.mp3?filename=calm-chill-lofi-ambient-113997.mp3" type="audio/mpeg">
-  </audio>
-  <audio id="coin-sound">
-    <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_0e75e43a96.mp3?filename=collectcoin-6075.mp3" type="audio/mpeg">
-  </audio>
-  <audio id="boom-sound">
-    <source src="https://cdn.pixabay.com/download/audio/2022/03/01/audio_050c4c79a8.mp3?filename=explosion-6055.mp3" type="audio/mpeg">
-  </audio>
 
   <script>
-    const gameArea = document.getElementById("game-area");
-    const scoreSpan = document.getElementById("score");
-    const highScoreSpan = document.getElementById("high-score");
-    const finalScore = document.getElementById("final-score");
-    const finalHighScore = document.getElementById("final-high-score");
-    const basket = document.getElementById("basket");
-    const bgMusic = document.getElementById("bg-music");
-    const coinSound = document.getElementById("coin-sound");
-    const boomSound = document.getElementById("boom-sound");
-    const pauseBtn = document.getElementById("pause-btn");
-
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    let player = { x: 180, y: 550, width: 40, height: 20 };
+    let coins = [];
     let score = 0;
-    let highScore = localStorage.getItem("highScore") || 0;
-    highScoreSpan.textContent = highScore;
-
-    let isPaused = false;
-    let dropInterval;
+    let gameInterval;
+    const startScreen = document.getElementById("start-screen");
+    const gameOverScreen = document.getElementById("game-over-screen");
+    const finalScore = document.getElementById("final-score");
 
     function startGame() {
-      document.getElementById("start-screen").style.display = "none";
-      gameArea.style.display = "block";
-      pauseBtn.style.display = "inline-block";
-      bgMusic.play();
+      startScreen.classList.add("hidden");
+      coins = [];
       score = 0;
-      scoreSpan.textContent = score;
-      startDropping();
+      player.x = 180;
+      gameInterval = setInterval(updateGame, 30);
     }
 
-    function endGame() {
-      document.getElementById("game-over").style.display = "flex";
+    function gameOver() {
+      clearInterval(gameInterval);
       finalScore.textContent = score;
-      if (score > highScore) {
-        highScore = score;
-        localStorage.setItem("highScore", highScore);
-      }
-      finalHighScore.textContent = highScore;
-      gameArea.style.display = "none";
-      pauseBtn.style.display = "none";
+      gameOverScreen.classList.remove("hidden");
     }
 
     function restartGame() {
-      location.reload();
+      gameOverScreen.classList.add("hidden");
+      startGame();
     }
 
-    function togglePause() {
-      isPaused = !isPaused;
-      pauseBtn.textContent = isPaused ? "Resume" : "Pause";
+    function drawPlayer() {
+      ctx.fillStyle = "#0f0";
+      ctx.fillRect(player.x, player.y, player.width, player.height);
     }
 
-    document.addEventListener("touchmove", (e) => {
-      basket.style.left = `${e.touches[0].clientX - 20}px`;
-    });
+    function drawCoins() {
+      ctx.fillStyle = "gold";
+      coins.forEach((coin) => {
+        ctx.beginPath();
+        ctx.arc(coin.x, coin.y, coin.radius, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
 
-    function startDropping() {
-      let speed = 3;
-      function drop() {
-        if (isPaused) {
-          setTimeout(drop, 200);
-          return;
-        }
-        const item = document.createElement("div");
-        item.className = "falling";
-        item.innerText = Math.random() < 0.7 ? "🪙" : "💣";
-        item.style.left = `${Math.random() * 90}vw`;
-        item.style.top = `-40px`;
-        gameArea.appendChild(item);
+    function updateGame() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        let top = -40;
-        const interval = setInterval(() => {
-          if (isPaused) return;
-          top += speed;
-          item.style.top = `${top}px`;
+      // Move player
+      document.onkeydown = (e) => {
+        if (e.key === "ArrowLeft" && player.x > 0) player.x -= 10;
+        if (e.key === "ArrowRight" && player.x < canvas.width - player.width)
+          player.x += 10;
+      };
 
-          const basketRect = basket.getBoundingClientRect();
-          const itemRect = item.getBoundingClientRect();
-
-          if (top > window.innerHeight) {
-            gameArea.removeChild(item);
-            clearInterval(interval);
-          } else if (
-            itemRect.bottom > basketRect.top &&
-            itemRect.top < basketRect.bottom &&
-            itemRect.left < basketRect.right &&
-            itemRect.right > basketRect.left
-          ) {
-            if (item.innerText === "🪙") {
-              score++;
-              coinSound.play();
-              scoreSpan.textContent = score;
-              gameArea.removeChild(item);
-            } else {
-              boomSound.play();
-              clearInterval(interval);
-              endGame();
-            }
-          }
-        }, 30);
-        speed += 0.05;
-        setTimeout(drop, 800);
+      // Add new coin
+      if (Math.random() < 0.05) {
+        coins.push({
+          x: Math.random() * (canvas.width - 10) + 5,
+          y: 0,
+          radius: 10,
+        });
       }
-      drop();
+
+      // Move coins
+      coins.forEach((coin) => (coin.y += 4));
+
+      // Check collisions
+      coins = coins.filter((coin) => {
+        if (
+          coin.y + coin.radius > player.y &&
+          coin.x > player.x &&
+          coin.x < player.x + player.width
+        ) {
+          score++;
+          return false;
+        } else if (coin.y > canvas.height) {
+          gameOver();
+          return false;
+        }
+        return true;
+      });
+
+      drawPlayer();
+      drawCoins();
+
+      // Score
+      ctx.fillStyle = "white";
+      ctx.font = "16px Arial";
+      ctx.fillText("Score: " + score, 10, 20);
     }
+
+    startScreen.addEventListener("click", startGame);
+    canvas.addEventListener("touchmove", (e) => {
+      let touchX = e.touches[0].clientX;
+      player.x = touchX - player.width / 2;
+    });
   </script>
 </body>
-
 </html>
