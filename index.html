@@ -1,99 +1,220 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Coin Catcher Game</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FUNDING Coin Catcher</title>
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
       overflow: hidden;
-      background-color: #f0f8ff;
+      background: linear-gradient(to bottom right, #a1c4fd, #c2e9fb);
     }
-    canvas {
-      display: block;
-      background-color: #87ceeb;
+
+    #start-screen, #game-over {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #fff3cd;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      text-align: center;
+    }
+
+    #game-area {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    #basket {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 2.5rem;
+    }
+
+    .falling {
+      position: absolute;
+      font-size: 2.2rem;
+      top: 0;
+    }
+
+    #scoreboard {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.5);
+      color: white;
+      padding: 10px;
+      border-radius: 10px;
+      font-size: 1rem;
+    }
+
+    #timer {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.5);
+      color: white;
+      padding: 10px;
+      border-radius: 10px;
+      font-size: 1rem;
+    }
+
+    #qr-code {
+      width: 150px;
+      height: auto;
+      margin-top: 10px;
+    }
+
+    button {
+      padding: 10px 20px;
+      background-color: #28a745;
+      color: white;
+      font-size: 1rem;
+      border: none;
+      border-radius: 5px;
+      margin: 10px;
+    }
+
+    .glow {
+      color: #ff1493;
+      text-shadow: 0 0 10px #ff1493, 0 0 20px #ff69b4;
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
-  <canvas id="gameCanvas" width="400" height="600"></canvas>
+  <div id="start-screen">
+    <h1>FUNDING Coin Catcher</h1>
+    <button onclick="startGame()">Start Game</button>
+    <p>Move the 🧺 basket to catch 🪙 coins!</p>
+    <img id="qr-code" src="IMG_20250619_080623.jpg" alt="Donate QR Code" />
+  </div>
+
+  <div id="game-area">
+    <div id="basket">🧺</div>
+    <div id="scoreboard">Score: <span id="score">0</span></div>
+    <div id="timer">Time: <span id="time">30</span>s</div>
+  </div>
+
+  <div id="game-over" style="display: none;">
+    <h1>Game Over</h1>
+    <p>Your Score: <span id="final-score">0</span></p>
+    <p>Donate just ₹25 if you enjoyed the game for my phone</p>
+    <img id="qr-code" src="IMG_20250619_080623.jpg" alt="Donate QR Code" />
+    <p class="glow">earningthakur@fam</p>
+    <button onclick="copyUPI()">Copy UPI ID</button>
+    <button onclick="donateNow()">Donate Now</button>
+    <p id="thank-you" style="display: none; color: green;">Thanks for donating us!</p>
+    <button onclick="location.reload()">Play Again</button>
+  </div>
+
   <script>
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');const player = {
-  x: 180,
-  y: 550,
-  width: 40,
-  height: 40,
-  color: 'blue',
-  speed: 5
-};
+    const gameArea = document.getElementById("game-area");
+    const basket = document.getElementById("basket");
+    const scoreDisplay = document.getElementById("score");
+    const finalScoreDisplay = document.getElementById("final-score");
+    const timeDisplay = document.getElementById("time");
+    const thankYouMessage = document.getElementById("thank-you");
 
-const coins = [];
-const coinRadius = 10;
-let score = 0;
+    let score = 0;
+    let gameInterval;
+    let spawnRate = 500; // Faster spawn
+    let speedLevel = 8; // Faster fall speed
+    let countdown;
 
-function drawPlayer() {
-  ctx.fillStyle = player.color;
-  ctx.fillRect(player.x, player.y, player.width, player.height);
-}
+    function startGame() {
+      document.getElementById("start-screen").style.display = "none";
+      gameInterval = setInterval(spawnItem, spawnRate);
 
-function drawCoins() {
-  ctx.fillStyle = 'gold';
-  coins.forEach(coin => {
-    ctx.beginPath();
-    ctx.arc(coin.x, coin.y, coinRadius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.closePath();
-  });
-}
+      const speedInterval = setInterval(() => {
+        speedLevel += 1;
+      }, 2000);
 
-function updateCoins() {
-  for (let i = coins.length - 1; i >= 0; i--) {
-    coins[i].y += 3;
-    if (
-      coins[i].x > player.x &&
-      coins[i].x < player.x + player.width &&
-      coins[i].y > player.y &&
-      coins[i].y < player.y + player.height
-    ) {
-      coins.splice(i, 1);
-      score++;
-    } else if (coins[i].y > canvas.height) {
-      coins.splice(i, 1);
+      let timeLeft = 30;
+      countdown = setInterval(() => {
+        timeLeft--;
+        timeDisplay.textContent = timeLeft;
+        if (timeLeft <= 0) {
+          clearInterval(gameInterval);
+          clearInterval(speedInterval);
+          clearInterval(countdown);
+          endGame();
+        }
+      }, 1000);
     }
-  }
-}
 
-function drawScore() {
-  ctx.fillStyle = 'black';
-  ctx.font = '20px Arial';
-  ctx.fillText('Score: ' + score, 10, 30);
-}
+    function spawnItem() {
+      const item = document.createElement("div");
+      item.classList.add("falling");
+      item.textContent = "🪙";
+      item.style.left = Math.random() * (window.innerWidth - 30) + "px";
+      gameArea.appendChild(item);
 
-function gameLoop() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawPlayer();
-  drawCoins();
-  updateCoins();
-  drawScore();
-  requestAnimationFrame(gameLoop);
-}
+      let topPos = 0;
+      const fallInterval = setInterval(() => {
+        topPos += speedLevel / 2;
+        item.style.top = topPos + "px";
 
-setInterval(() => {
-  const x = Math.random() * (canvas.width - coinRadius * 2) + coinRadius;
-  coins.push({ x: x, y: 0 });
-}, 1000);
+        const itemRect = item.getBoundingClientRect();
+        const basketRect = basket.getBoundingClientRect();
 
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'ArrowLeft' && player.x > 0) {
-    player.x -= player.speed;
-  } else if (e.key === 'ArrowRight' && player.x + player.width < canvas.width) {
-    player.x += player.speed;
-  }
-});
+        if (
+          itemRect.bottom >= basketRect.top &&
+          itemRect.left < basketRect.right &&
+          itemRect.right > basketRect.left
+        ) {
+          clearInterval(fallInterval);
+          item.remove();
+          score++;
+          scoreDisplay.textContent = score;
+        }
 
-gameLoop();
+        if (topPos > window.innerHeight) {
+          clearInterval(fallInterval);
+          item.remove();
+        }
+      }, 20);
+    }
 
+    function endGame() {
+      document.getElementById("game-over").style.display = "flex";
+      finalScoreDisplay.textContent = score;
+    }
+
+    function copyUPI() {
+      navigator.clipboard.writeText("earningthakur@fam");
+      alert("UPI ID copied to clipboard!");
+    }
+
+    function donateNow() {
+      const upiUrl = "upi://pay?pa=earningthakur@fam&pn=Govind&am=25&cu=INR";
+      window.location.href = upiUrl;
+      thankYouMessage.style.display = "block";
+    }
+
+    gameArea.addEventListener("mousemove", (e) => {
+      basket.style.left = `${e.clientX}px`;
+    });
+
+    gameArea.addEventListener("touchmove", (e) => {
+      basket.style.left = `${e.touches[0].clientX}px`;
+    });
   </script>
 </body>
 </html>
